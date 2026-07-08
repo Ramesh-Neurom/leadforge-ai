@@ -2,12 +2,50 @@
 
 import { FormEvent, useEffect, useState } from 'react';
 import {
+  Database,
+  Plug,
+  RefreshCw,
+  Rss,
+  TestTube2,
+} from 'lucide-react';
+import {
   LeadSource,
   createLeadSource,
   fetchLeadSources,
   syncLeadSource,
   testLeadSource,
 } from '../../lib/lead-sources';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Badge, type BadgeTone } from '@/components/ui/Badge';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Input, LabeledField } from '@/components/ui/Field';
+
+/** Two-letter avatar + tone for known integrations. */
+function sourceBrand(source: LeadSource): { icon: string; tone: string } {
+  const key = `${source.integrationType} ${source.name}`.toLowerCase();
+  if (key.includes('freelancer')) return { icon: 'FL', tone: 'bg-sky-600' };
+  if (key.includes('remote')) return { icon: 'RO', tone: 'bg-orange-500' };
+  if (key.includes('upwork')) return { icon: 'UP', tone: 'bg-emerald-600' };
+  if (key.includes('fiverr')) return { icon: 'FV', tone: 'bg-green-600' };
+  if (key.includes('linkedin')) return { icon: 'IN', tone: 'bg-blue-700' };
+  if (key.includes('indeed')) return { icon: 'ID', tone: 'bg-indigo-600' };
+  if (key.includes('manual')) return { icon: 'ME', tone: 'bg-slate-500' };
+  if (key.includes('rss')) return { icon: 'RS', tone: 'bg-amber-500' };
+  return { icon: 'LS', tone: 'bg-slate-700' };
+}
+
+function statusTone(status: string): BadgeTone {
+  switch (status.toUpperCase()) {
+    case 'ACTIVE':
+      return 'emerald';
+    case 'DISABLED':
+      return 'rose';
+    default:
+      return 'slate';
+  }
+}
 
 export default function SettingsPage() {
   const [sources, setSources] = useState<LeadSource[]>([]);
@@ -30,7 +68,6 @@ export default function SettingsPage() {
     event.preventDefault();
     setCreating(true);
     setMessage('');
-
     try {
       await createLeadSource({
         name,
@@ -54,7 +91,6 @@ export default function SettingsPage() {
   async function handleAction(source: LeadSource, action: 'test' | 'sync') {
     setBusyId(`${source.id}:${action}`);
     setMessage('');
-
     try {
       const result =
         action === 'test'
@@ -72,132 +108,135 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-sm uppercase tracking-wide text-slate-500">
-          Settings
-        </p>
-        <h1 className="text-2xl font-semibold text-slate-900">Lead Sources</h1>
-      </div>
+      <PageHeader
+        title="Lead Sources"
+        subtitle="Manage integrations and RSS feeds that supply new leads."
+      />
 
-      <form
-        onSubmit={handleCreate}
-        className="grid gap-4 rounded-lg border border-slate-200 bg-white p-4 md:grid-cols-[1fr_2fr_auto]"
-      >
-        <label className="space-y-1">
-          <span className="text-sm font-medium text-slate-700">
-            Source name
+      {/* Add RSS feed */}
+      <Card>
+        <div className="flex items-center gap-2">
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
+            <Rss className="h-5 w-5" />
           </span>
-          <input
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            required
-          />
-        </label>
-        <label className="space-y-1">
-          <span className="text-sm font-medium text-slate-700">
-            RSS feed URL
-          </span>
-          <input
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-            value={feedUrl}
-            onChange={(event) => setFeedUrl(event.target.value)}
-            placeholder="https://example.com/jobs.rss"
-            type="url"
-            required
-          />
-        </label>
-        <button
-          className="self-end rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-          disabled={creating}
-          type="submit"
+          <div>
+            <h2 className="text-base font-semibold text-slate-900">
+              Add RSS feed
+            </h2>
+            <p className="text-sm text-slate-500">
+              Connect any job board or marketplace RSS feed.
+            </p>
+          </div>
+        </div>
+        <form
+          onSubmit={handleCreate}
+          className="mt-4 grid gap-4 md:grid-cols-[1fr_2fr_auto] md:items-end"
         >
-          {creating ? 'Adding...' : 'Add RSS'}
-        </button>
-      </form>
+          <LabeledField label="Source name">
+            <Input
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              required
+            />
+          </LabeledField>
+          <LabeledField label="RSS feed URL">
+            <Input
+              value={feedUrl}
+              onChange={(event) => setFeedUrl(event.target.value)}
+              placeholder="https://example.com/jobs.rss"
+              type="url"
+              required
+            />
+          </LabeledField>
+          <Button type="submit" variant="accent" disabled={creating}>
+            <Plug className="h-4 w-4" />
+            {creating ? 'Adding...' : 'Add RSS'}
+          </Button>
+        </form>
+      </Card>
 
       {message ? (
-        <div className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+        <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-700">
           {message}
         </div>
       ) : null}
 
-      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-slate-50 text-xs uppercase text-slate-500">
-            <tr>
-              <th className="px-4 py-3">Source</th>
-              <th className="px-4 py-3">Integration</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Last sync</th>
-              <th className="px-4 py-3">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {sources.map((source) => (
-              <tr key={source.id} className="align-top">
-                <td className="px-4 py-3">
-                  <div className="font-medium text-slate-900">
-                    {source.name}
+      {/* Source cards */}
+      {sources.length ? (
+        <div className="grid gap-4 md:grid-cols-2">
+          {sources.map((source) => {
+            const brand = sourceBrand(source);
+            return (
+              <Card key={source.id} className="flex flex-col gap-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={`flex h-11 w-11 items-center justify-center rounded-lg text-sm font-bold text-white ${brand.tone}`}
+                    >
+                      {brand.icon}
+                    </span>
+                    <div>
+                      <p className="font-semibold text-slate-900">
+                        {source.name}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {source.type} • {source.integrationType}
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-xs text-slate-500">{source.type}</div>
-                </td>
-                <td className="px-4 py-3 text-slate-700">
-                  {source.integrationType}
-                </td>
-                <td className="px-4 py-3">
-                  <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-700">
+                  <Badge tone={statusTone(source.status)} dot>
                     {source.status}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-slate-600">
-                  <div>{source.lastSyncStatus ?? 'Not synced'}</div>
-                  <div className="max-w-sm text-xs text-slate-500">
+                  </Badge>
+                </div>
+
+                <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-xs">
+                  <div className="flex items-center gap-1.5 font-medium text-slate-700">
+                    <Database className="h-3.5 w-3.5 text-slate-400" />
+                    {source.lastSyncStatus ?? 'Not synced'}
+                  </div>
+                  <p className="mt-1 line-clamp-2 text-slate-500">
                     {source.lastSyncMessage ?? 'No sync activity yet.'}
-                  </div>
-                  <div className="text-xs text-slate-400">
-                    {source.lastSyncAt
-                      ? new Date(source.lastSyncAt).toLocaleString()
-                      : ''}
-                  </div>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 disabled:opacity-50"
-                      disabled={busyId !== null}
-                      onClick={() => handleAction(source, 'test')}
-                      type="button"
-                    >
-                      {busyId === `${source.id}:test` ? 'Testing...' : 'Test'}
-                    </button>
-                    <button
-                      className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
-                      disabled={busyId !== null || source.status === 'DISABLED'}
-                      onClick={() => handleAction(source, 'sync')}
-                      type="button"
-                    >
-                      {busyId === `${source.id}:sync`
-                        ? 'Syncing...'
-                        : 'Sync now'}
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {!sources.length ? (
-              <tr>
-                <td
-                  className="px-4 py-6 text-center text-slate-500"
-                  colSpan={5}
-                >
-                  No lead sources configured yet.
-                </td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
-      </div>
+                  </p>
+                  {source.lastSyncAt ? (
+                    <p className="mt-1 text-slate-400">
+                      {new Date(source.lastSyncAt).toLocaleString()}
+                    </p>
+                  ) : null}
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={busyId !== null}
+                    onClick={() => handleAction(source, 'test')}
+                  >
+                    <TestTube2 className="h-4 w-4" />
+                    {busyId === `${source.id}:test` ? 'Testing...' : 'Test'}
+                  </Button>
+                  <Button
+                    variant="accent"
+                    size="sm"
+                    disabled={busyId !== null || source.status === 'DISABLED'}
+                    onClick={() => handleAction(source, 'sync')}
+                  >
+                    <RefreshCw
+                      className={`h-4 w-4 ${busyId === `${source.id}:sync` ? 'animate-spin' : ''}`}
+                    />
+                    {busyId === `${source.id}:sync` ? 'Syncing...' : 'Sync now'}
+                  </Button>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      ) : (
+        <EmptyState
+          title="No lead sources configured"
+          description="Add an RSS feed above to start importing leads automatically."
+          icon={Rss}
+        />
+      )}
     </div>
   );
 }

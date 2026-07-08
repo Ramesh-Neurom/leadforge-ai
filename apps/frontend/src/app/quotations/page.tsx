@@ -111,7 +111,7 @@ export default function QuotationsPage() {
       ) : null}
 
       <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
-        <div className="rounded-md border bg-white p-4">
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-card">
           <h2 className="font-semibold">Quotation generator</h2>
           <div className="mt-4 grid gap-3">
             <label className="space-y-1 text-sm">
@@ -167,7 +167,7 @@ export default function QuotationsPage() {
           </div>
         </div>
 
-        <div className="rounded-md border bg-white p-4">
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-card">
           <h2 className="font-semibold">PDF preview/export</h2>
           {selectedQuotation ? (
             <div className="mt-4 space-y-4">
@@ -203,7 +203,7 @@ export default function QuotationsPage() {
         </div>
       </div>
 
-      <div className="rounded-md border bg-white p-4">
+      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-card">
         <h2 className="font-semibold">All quotations</h2>
         <div className="mt-4 space-y-3">
           {loading ? (

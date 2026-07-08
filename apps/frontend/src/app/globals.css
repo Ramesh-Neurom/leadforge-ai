@@ -3,14 +3,69 @@
 @tailwind utilities;
 
 :root {
-  --background: 0 0% 100%;
-  --foreground: 222.2 84% 4.9%;
+  /* App background: light slate */
+  --background: 210 40% 98%;
+  --foreground: 222.2 47% 11.2%;
+
+  --card: 0 0% 100%;
+  --card-foreground: 222.2 47% 11.2%;
+
+  --muted: 210 40% 96.1%;
+  --muted-foreground: 215.4 16.3% 46.9%;
+
   --border: 214.3 31.8% 91.4%;
+  --ring: 226 71% 40%;
+
+  /* Primary: dark navy / indigo */
   --primary: 222.2 47.4% 11.2%;
   --primary-foreground: 210 40% 98%;
+
+  /* Accent: blue / violet */
+  --accent: 234 89% 60%;
+  --accent-foreground: 0 0% 100%;
+
+  /* Sidebar */
+  --sidebar: 222 47% 11%;
+  --sidebar-foreground: 214 32% 91%;
+  --sidebar-muted: 217 33% 65%;
+  --sidebar-accent: 234 89% 66%;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+html,
+body {
+  height: 100%;
 }
 
 body {
   background: hsl(var(--background));
   color: hsl(var(--foreground));
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Thin, subtle scrollbars for panels and boards */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(215 20% 80%) transparent;
+}
+.scrollbar-thin::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: hsl(215 20% 80%);
+  border-radius: 9999px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
 }

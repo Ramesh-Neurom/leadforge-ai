@@ -448,7 +448,7 @@ export default function LeadDetailPage() {
 
       <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
         <div className="space-y-4">
-          <div className="rounded-md border bg-white p-4">
+          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-card">
             <h2 className="font-semibold">Project brief</h2>
             <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700">
               {lead.description}
@@ -465,7 +465,7 @@ export default function LeadDetailPage() {
             </div>
           </div>
 
-          <div className="rounded-md border bg-white p-4">
+          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-card">
             <h2 className="font-semibold">Lead analysis</h2>
             {lead.analysis ? (
               <div className="mt-4 grid gap-3 md:grid-cols-2">
@@ -506,7 +506,7 @@ export default function LeadDetailPage() {
             )}
           </div>
 
-          <div className="rounded-md border bg-white p-4">
+          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-card">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="font-semibold">Proposal</h2>
@@ -661,7 +661,7 @@ export default function LeadDetailPage() {
             )}
           </div>
 
-          <div className="rounded-md border bg-white p-4">
+          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-card">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="font-semibold">Email composer</h2>
@@ -753,7 +753,7 @@ export default function LeadDetailPage() {
         </div>
 
         <aside className="space-y-4">
-          <div className="rounded-md border bg-white p-4">
+          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-card">
             <h2 className="font-semibold">Client</h2>
             <div className="mt-4 space-y-3">
               <Info label="Name" value={lead.clientName} />
@@ -763,7 +763,7 @@ export default function LeadDetailPage() {
             </div>
           </div>
 
-          <div className="rounded-md border bg-white p-4">
+          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-card">
             <h2 className="font-semibold">Opportunity</h2>
             <div className="mt-4 space-y-3">
               <Info label="Budget" value={formatBudget(lead)} />
@@ -782,7 +782,7 @@ export default function LeadDetailPage() {
             </div>
           </div>
 
-          <div className="rounded-md border bg-white p-4">
+          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-card">
             <h2 className="font-semibold">Activity timeline</h2>
             {activities.length ? (
               <ol className="mt-4 space-y-4">
@@ -815,7 +815,7 @@ export default function LeadDetailPage() {
             )}
           </div>
 
-          <div className="rounded-md border bg-white p-4">
+          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-card">
             <h2 className="font-semibold">Message history</h2>
             {conversation?.messages.length ? (
               <ol className="mt-4 space-y-4">
@@ -848,7 +848,7 @@ export default function LeadDetailPage() {
             )}
           </div>
 
-          <div className="rounded-md border bg-white p-4">
+          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-card">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="font-semibold">Follow-up timeline</h2>
               <button

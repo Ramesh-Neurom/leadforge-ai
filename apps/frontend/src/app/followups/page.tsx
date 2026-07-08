@@ -68,7 +68,7 @@ export default function FollowupsPage() {
         </div>
       ) : null}
 
-      <section className="rounded-md border bg-white p-4">
+      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-card">
         <div className="flex items-center justify-between gap-3">
           <h2 className="font-semibold">Due today</h2>
           <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
@@ -93,7 +93,7 @@ export default function FollowupsPage() {
         </div>
       </section>
 
-      <section className="rounded-md border bg-white p-4">
+      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-card">
         <h2 className="font-semibold">All follow-ups</h2>
         <div className="mt-4 space-y-3">
           {loading ? (

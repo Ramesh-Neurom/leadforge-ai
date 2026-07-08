@@ -2,15 +2,52 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import { FileText } from 'lucide-react';
 import {
   Proposal,
+  ProposalStatus,
   fetchProposals,
   formatProposalStatus,
-  proposalStatusBadgeClass,
 } from '@/lib/proposals';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { Badge, type BadgeTone } from '@/components/ui/Badge';
+import { EmptyState } from '@/components/ui/EmptyState';
+import {
+  Table,
+  TableWrapper,
+  Td,
+  Th,
+  Thead,
+} from '@/components/ui/DataTable';
+import { cn } from '@/lib/utils';
+
+const TABS: { label: string; value: 'ALL' | ProposalStatus }[] = [
+  { label: 'All', value: 'ALL' },
+  { label: 'Draft', value: 'DRAFT' },
+  { label: 'Waiting Approval', value: 'WAITING_APPROVAL' },
+  { label: 'Approved', value: 'APPROVED' },
+  { label: 'Sent', value: 'SENT' },
+  { label: 'Rejected', value: 'REJECTED' },
+];
+
+function proposalTone(status: ProposalStatus): BadgeTone {
+  switch (status) {
+    case 'APPROVED':
+      return 'emerald';
+    case 'SENT':
+      return 'blue';
+    case 'REJECTED':
+      return 'rose';
+    case 'WAITING_APPROVAL':
+      return 'amber';
+    default:
+      return 'slate';
+  }
+}
 
 export default function ProposalsPage() {
   const [proposals, setProposals] = useState<Proposal[]>([]);
+  const [tab, setTab] = useState<'ALL' | ProposalStatus>('ALL');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,138 +58,146 @@ export default function ProposalsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const cards = useMemo(
-    () => [
-      ['Total proposals', proposals.length],
-      [
-        'Drafts',
-        proposals.filter((proposal) => proposal.status === 'DRAFT').length,
-      ],
-      [
-        'Waiting approval',
-        proposals.filter((proposal) => proposal.status === 'WAITING_APPROVAL')
-          .length,
-      ],
-      [
-        'Approved',
-        proposals.filter((proposal) => proposal.status === 'APPROVED').length,
-      ],
-      [
-        'Sent',
-        proposals.filter((proposal) => proposal.status === 'SENT').length,
-      ],
-    ],
-    [proposals],
+  const counts = useMemo(() => {
+    const base: Record<string, number> = { ALL: proposals.length };
+    for (const proposal of proposals) {
+      base[proposal.status] = (base[proposal.status] ?? 0) + 1;
+    }
+    return base;
+  }, [proposals]);
+
+  const filtered = useMemo(
+    () =>
+      tab === 'ALL'
+        ? proposals
+        : proposals.filter((proposal) => proposal.status === tab),
+    [proposals, tab],
   );
 
   return (
-    <section className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Proposals</h1>
-        <p className="mt-1 text-sm text-slate-600">
-          Review proposal drafts, approvals, and sent status.
-        </p>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Proposals"
+        subtitle="Review proposal drafts, approvals, and sent status."
+      />
 
       {error ? (
-        <div className="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
           {error}
         </div>
       ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        {cards.map(([label, value]) => (
-          <div key={label} className="rounded-md border bg-white p-4">
-            <p className="text-sm text-slate-500">{label}</p>
-            <p className="mt-2 text-2xl font-semibold">{value}</p>
-          </div>
+      {/* Tabs */}
+      <div className="flex flex-wrap gap-2 rounded-xl border border-slate-200 bg-white p-1.5 shadow-card">
+        {TABS.map((item) => (
+          <button
+            key={item.value}
+            type="button"
+            onClick={() => setTab(item.value)}
+            className={cn(
+              'inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
+              tab === item.value
+                ? 'bg-slate-900 text-white'
+                : 'text-slate-600 hover:bg-slate-100',
+            )}
+          >
+            {item.label}
+            <span
+              className={cn(
+                'rounded-full px-1.5 py-0.5 text-[11px]',
+                tab === item.value
+                  ? 'bg-white/20 text-white'
+                  : 'bg-slate-100 text-slate-500',
+              )}
+            >
+              {counts[item.value] ?? 0}
+            </span>
+          </button>
         ))}
       </div>
 
-      <div className="overflow-hidden rounded-md border bg-white">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] text-left text-sm">
-            <thead className="border-b bg-slate-50 text-slate-600">
+      {loading ? (
+        <TableWrapper>
+          <div className="space-y-3 p-5">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div
+                key={i}
+                className="h-10 w-full animate-pulse rounded-lg bg-slate-100"
+              />
+            ))}
+          </div>
+        </TableWrapper>
+      ) : filtered.length ? (
+        <TableWrapper>
+          <Table>
+            <Thead>
               <tr>
-                <th className="px-4 py-3 font-medium">Lead</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium">Timeline</th>
-                <th className="px-4 py-3 font-medium">Budget</th>
-                <th className="px-4 py-3 font-medium">Approved</th>
-                <th className="px-4 py-3 font-medium">Sent</th>
+                <Th>Lead</Th>
+                <Th>Status</Th>
+                <Th>Timeline</Th>
+                <Th>Budget</Th>
+                <Th>Approved</Th>
+                <Th>Sent</Th>
               </tr>
-            </thead>
-            <tbody className="divide-y">
-              {loading ? (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="px-4 py-8 text-center text-slate-500"
-                  >
-                    Loading proposals...
-                  </td>
-                </tr>
-              ) : proposals.length ? (
-                proposals.map((proposal) => (
-                  <tr key={proposal.id} className="align-top">
-                    <td className="px-4 py-3">
-                      {proposal.lead ? (
-                        <Link
-                          href={`/leads/${proposal.lead.id}`}
-                          className="font-medium text-slate-950 hover:underline"
-                        >
-                          {proposal.lead.title}
-                        </Link>
-                      ) : (
-                        <span className="font-medium">Lead unavailable</span>
-                      )}
-                      <p className="mt-1 max-w-xl text-slate-500 line-clamp-2">
-                        {proposal.solutionSummary || proposal.proposalText}
-                      </p>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`rounded-full border px-2 py-1 text-xs font-medium ${proposalStatusBadgeClass(proposal.status)}`}
+            </Thead>
+            <tbody className="divide-y divide-slate-100">
+              {filtered.map((proposal) => (
+                <tr
+                  key={proposal.id}
+                  className="align-top transition-colors hover:bg-slate-50"
+                >
+                  <Td>
+                    {proposal.lead ? (
+                      <Link
+                        href={`/leads/${proposal.lead.id}`}
+                        className="font-medium text-slate-900 hover:text-indigo-600"
                       >
-                        {formatProposalStatus(proposal.status)}
+                        {proposal.lead.title}
+                      </Link>
+                    ) : (
+                      <span className="font-medium text-slate-500">
+                        Lead unavailable
                       </span>
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {proposal.timeline || '-'}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {proposal.budgetRange || '-'}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {proposal.approvedBy
-                        ? `${proposal.approvedBy.name} on ${formatDate(proposal.approvedAt)}`
-                        : '-'}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {proposal.sentAt
-                        ? `${proposal.sentMethod ?? 'Manual'} on ${formatDate(proposal.sentAt)}`
-                        : '-'}
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="px-4 py-8 text-center text-slate-500"
-                  >
-                    No proposals yet.
-                  </td>
+                    )}
+                    <p className="mt-1 line-clamp-2 max-w-xl text-xs text-slate-500">
+                      {proposal.solutionSummary || proposal.proposalText}
+                    </p>
+                  </Td>
+                  <Td>
+                    <Badge tone={proposalTone(proposal.status)} dot>
+                      {formatProposalStatus(proposal.status)}
+                    </Badge>
+                  </Td>
+                  <Td className="text-slate-600">{proposal.timeline || '—'}</Td>
+                  <Td className="text-slate-600">
+                    {proposal.budgetRange || '—'}
+                  </Td>
+                  <Td className="text-slate-600">
+                    {proposal.approvedBy
+                      ? `${proposal.approvedBy.name} on ${formatDate(proposal.approvedAt)}`
+                      : '—'}
+                  </Td>
+                  <Td className="text-slate-600">
+                    {proposal.sentAt
+                      ? `${proposal.sentMethod ?? 'Manual'} on ${formatDate(proposal.sentAt)}`
+                      : '—'}
+                  </Td>
                 </tr>
-              )}
+              ))}
             </tbody>
-          </table>
-        </div>
-      </div>
-    </section>
+          </Table>
+        </TableWrapper>
+      ) : (
+        <EmptyState
+          title="No proposals"
+          description="Generate proposals from qualified leads to see them listed here."
+          icon={FileText}
+        />
+      )}
+    </div>
   );
 }
 
 function formatDate(value: string | null) {
-  return value ? new Date(value).toLocaleDateString() : '-';
+  return value ? new Date(value).toLocaleDateString() : '—';
 }

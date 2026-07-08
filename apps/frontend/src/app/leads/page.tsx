@@ -3,6 +3,14 @@
 import Link from 'next/link';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import {
+  CheckCircle2,
+  Inbox,
+  Plus,
+  Target,
+  Trophy,
+  X,
+} from 'lucide-react';
+import {
   Lead,
   LeadFilters,
   LeadFormPayload,
@@ -13,8 +21,23 @@ import {
   formatStatus,
   leadStatuses,
   parseStringArray,
-  statusBadgeClass,
 } from '@/lib/leads';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { StatCard } from '@/components/ui/StatCard';
+import { StatusBadge } from '@/components/ui/StatusBadge';
+import { PriorityBadge } from '@/components/ui/PriorityBadge';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { SearchFilterBar } from '@/components/ui/SearchFilterBar';
+import { Input, Select, LabeledField, Textarea } from '@/components/ui/Field';
+import {
+  Table,
+  TableWrapper,
+  Td,
+  Th,
+  Thead,
+} from '@/components/ui/DataTable';
 
 const emptyForm: LeadFormPayload = {
   sourceId: '',
@@ -38,7 +61,10 @@ export default function LeadsPage() {
   const [allLeads, setAllLeads] = useState<Lead[]>([]);
   const [sources, setSources] = useState<LeadSource[]>([]);
   const [filters, setFilters] = useState<LeadFilters>({});
+  const [search, setSearch] = useState('');
+  const [priority, setPriority] = useState('');
   const [form, setForm] = useState<LeadFormPayload>(emptyForm);
+  const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -69,22 +95,20 @@ export default function LeadsPage() {
       .finally(() => setLoading(false));
   }, [filters]);
 
-  const cards = useMemo(
-    () => [
-      ['Total leads', allLeads.length],
-      ['New leads', allLeads.filter((lead) => lead.status === 'NEW').length],
-      [
-        'Qualified leads',
-        allLeads.filter((lead) => lead.status === 'QUALIFIED').length,
-      ],
-      [
-        'Proposal sent',
-        allLeads.filter((lead) => lead.status === 'PROPOSAL_SENT').length,
-      ],
-      ['Won leads', allLeads.filter((lead) => lead.status === 'WON').length],
-    ],
-    [allLeads],
-  );
+  const visibleLeads = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return leads.filter((lead) => {
+      const matchesSearch =
+        !term ||
+        lead.title.toLowerCase().includes(term) ||
+        lead.description.toLowerCase().includes(term) ||
+        (lead.clientName ?? '').toLowerCase().includes(term);
+      const matchesPriority =
+        !priority ||
+        lead.analysis?.priority?.toUpperCase() === priority.toUpperCase();
+      return matchesSearch && matchesPriority;
+    });
+  }, [leads, search, priority]);
 
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -98,6 +122,7 @@ export default function LeadsPage() {
         sourceId: sources[0]?.id || '',
         currency: form.currency || 'USD',
       });
+      setShowForm(false);
       const [nextLeads, nextAllLeads] = await Promise.all([
         fetchLeads(filters),
         fetchLeads(),
@@ -112,320 +137,330 @@ export default function LeadsPage() {
   }
 
   return (
-    <section className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Lead Management</h1>
-          <p className="mt-1 text-sm text-slate-600">
-            Capture, qualify, and track sales opportunities.
-          </p>
-        </div>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Lead Management"
+        subtitle="Capture, qualify, and track sales opportunities."
+        actions={
+          <Button variant="accent" onClick={() => setShowForm((v) => !v)}>
+            {showForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+            {showForm ? 'Close' : 'Add Lead'}
+          </Button>
+        }
+      />
 
       {error ? (
-        <div className="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
           {error}
         </div>
       ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        {cards.map(([label, value]) => (
-          <div key={label} className="rounded-md border bg-white p-4">
-            <p className="text-sm text-slate-500">{label}</p>
-            <p className="mt-2 text-2xl font-semibold">{value}</p>
-          </div>
-        ))}
+      {/* Summary */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+        <StatCard label="Total leads" value={allLeads.length} icon={Inbox} accent="indigo" />
+        <StatCard label="New" value={allLeads.filter((l) => l.status === 'NEW').length} icon={Target} accent="blue" />
+        <StatCard label="Qualified" value={allLeads.filter((l) => l.status === 'QUALIFIED').length} icon={CheckCircle2} accent="emerald" />
+        <StatCard label="Proposal sent" value={allLeads.filter((l) => l.status === 'PROPOSAL_SENT').length} icon={Target} accent="violet" />
+        <StatCard label="Won" value={allLeads.filter((l) => l.status === 'WON').length} icon={Trophy} accent="amber" />
       </div>
 
-      <form onSubmit={handleCreate} className="rounded-md border bg-white p-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h2 className="font-semibold">Manual lead create</h2>
-            <p className="text-sm text-slate-500">
-              Add a lead from a marketplace, referral, or direct conversation.
-            </p>
+      {/* Create form */}
+      {showForm ? (
+        <Card>
+          <form onSubmit={handleCreate}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h2 className="text-base font-semibold text-slate-900">
+                  New lead
+                </h2>
+                <p className="text-sm text-slate-500">
+                  Add a lead from a marketplace, referral, or direct
+                  conversation.
+                </p>
+              </div>
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={saving || !form.sourceId}
+              >
+                {saving ? 'Saving...' : 'Create lead'}
+              </Button>
+            </div>
+
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <LabeledField label="Title">
+                <Input
+                  value={form.title}
+                  onChange={(e) => setForm({ ...form, title: e.target.value })}
+                  required
+                />
+              </LabeledField>
+              <LabeledField label="Source">
+                <Select
+                  value={form.sourceId}
+                  onChange={(e) =>
+                    setForm({ ...form, sourceId: e.target.value })
+                  }
+                  required
+                >
+                  {sources.map((source) => (
+                    <option key={source.id} value={source.id}>
+                      {source.name}
+                    </option>
+                  ))}
+                </Select>
+              </LabeledField>
+              <LabeledField label="Client name">
+                <Input
+                  value={form.clientName}
+                  onChange={(e) =>
+                    setForm({ ...form, clientName: e.target.value })
+                  }
+                />
+              </LabeledField>
+              <LabeledField label="Client country">
+                <Input
+                  value={form.clientCountry}
+                  onChange={(e) =>
+                    setForm({ ...form, clientCountry: e.target.value })
+                  }
+                />
+              </LabeledField>
+              <LabeledField label="Client email">
+                <Input
+                  value={form.clientEmail}
+                  onChange={(e) =>
+                    setForm({ ...form, clientEmail: e.target.value })
+                  }
+                />
+              </LabeledField>
+              <LabeledField label="Project URL">
+                <Input
+                  value={form.projectUrl}
+                  onChange={(e) =>
+                    setForm({ ...form, projectUrl: e.target.value })
+                  }
+                />
+              </LabeledField>
+              <LabeledField label="Budget min">
+                <Input
+                  value={form.budgetMin}
+                  onChange={(e) =>
+                    setForm({ ...form, budgetMin: e.target.value })
+                  }
+                />
+              </LabeledField>
+              <LabeledField label="Budget max">
+                <Input
+                  value={form.budgetMax}
+                  onChange={(e) =>
+                    setForm({ ...form, budgetMax: e.target.value })
+                  }
+                />
+              </LabeledField>
+              <LabeledField label="Currency">
+                <Input
+                  value={form.currency}
+                  onChange={(e) =>
+                    setForm({ ...form, currency: e.target.value })
+                  }
+                />
+              </LabeledField>
+              <LabeledField label="Skills" hint="Comma separated">
+                <Input
+                  value={form.skills}
+                  onChange={(e) => setForm({ ...form, skills: e.target.value })}
+                  placeholder="Next.js, CRM, API"
+                />
+              </LabeledField>
+              <LabeledField label="Description" className="md:col-span-2">
+                <Textarea
+                  value={form.description}
+                  onChange={(e) =>
+                    setForm({ ...form, description: e.target.value })
+                  }
+                  className="min-h-24"
+                  required
+                />
+              </LabeledField>
+            </div>
+          </form>
+        </Card>
+      ) : null}
+
+      {/* Filters */}
+      <SearchFilterBar
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search leads by title, client..."
+      >
+        <Select
+          value={filters.sourceId ?? ''}
+          onChange={(e) =>
+            setFilters({ ...filters, sourceId: e.target.value || undefined })
+          }
+          className="lg:w-40"
+        >
+          <option value="">All sources</option>
+          {sources.map((source) => (
+            <option key={source.id} value={source.id}>
+              {source.name}
+            </option>
+          ))}
+        </Select>
+        <Select
+          value={filters.status ?? ''}
+          onChange={(e) =>
+            setFilters({ ...filters, status: e.target.value || undefined })
+          }
+          className="lg:w-44"
+        >
+          <option value="">All statuses</option>
+          {leadStatuses.map((status) => (
+            <option key={status} value={status}>
+              {formatStatus(status)}
+            </option>
+          ))}
+        </Select>
+        <Select
+          value={priority}
+          onChange={(e) => setPriority(e.target.value)}
+          className="lg:w-36"
+        >
+          <option value="">All priority</option>
+          <option value="HIGH">High</option>
+          <option value="MEDIUM">Medium</option>
+          <option value="LOW">Low</option>
+        </Select>
+        <Input
+          type="date"
+          value={filters.from ?? ''}
+          onChange={(e) =>
+            setFilters({ ...filters, from: e.target.value || undefined })
+          }
+          className="lg:w-40"
+        />
+      </SearchFilterBar>
+
+      {/* Table */}
+      {loading ? (
+        <TableWrapper>
+          <div className="space-y-3 p-5">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div
+                key={i}
+                className="h-10 w-full animate-pulse rounded-lg bg-slate-100"
+              />
+            ))}
           </div>
-          <button
-            type="submit"
-            disabled={saving || !form.sourceId}
-            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-slate-400"
-          >
-            {saving ? 'Saving...' : 'Create lead'}
-          </button>
-        </div>
-
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
-          <Field
-            label="Title"
-            value={form.title}
-            onChange={(title) => setForm({ ...form, title })}
-            required
-          />
-          <label className="space-y-1 text-sm">
-            <span className="font-medium">Source</span>
-            <select
-              value={form.sourceId}
-              onChange={(event) =>
-                setForm({ ...form, sourceId: event.target.value })
-              }
-              className="w-full rounded-md border px-3 py-2"
-              required
-            >
-              {sources.map((source) => (
-                <option key={source.id} value={source.id}>
-                  {source.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <Field
-            label="Client name"
-            value={form.clientName}
-            onChange={(clientName) => setForm({ ...form, clientName })}
-          />
-          <Field
-            label="Client country"
-            value={form.clientCountry}
-            onChange={(clientCountry) => setForm({ ...form, clientCountry })}
-          />
-          <Field
-            label="Client email"
-            value={form.clientEmail}
-            onChange={(clientEmail) => setForm({ ...form, clientEmail })}
-          />
-          <Field
-            label="Project URL"
-            value={form.projectUrl}
-            onChange={(projectUrl) => setForm({ ...form, projectUrl })}
-          />
-          <Field
-            label="Budget min"
-            value={form.budgetMin}
-            onChange={(budgetMin) => setForm({ ...form, budgetMin })}
-          />
-          <Field
-            label="Budget max"
-            value={form.budgetMax}
-            onChange={(budgetMax) => setForm({ ...form, budgetMax })}
-          />
-          <Field
-            label="Currency"
-            value={form.currency}
-            onChange={(currency) => setForm({ ...form, currency })}
-          />
-          <Field
-            label="Skills"
-            value={form.skills}
-            onChange={(skills) => setForm({ ...form, skills })}
-            placeholder="Next.js, CRM, API"
-          />
-          <label className="space-y-1 text-sm md:col-span-2">
-            <span className="font-medium">Description</span>
-            <textarea
-              value={form.description}
-              onChange={(event) =>
-                setForm({ ...form, description: event.target.value })
-              }
-              className="min-h-24 w-full rounded-md border px-3 py-2"
-              required
-            />
-          </label>
-        </div>
-      </form>
-
-      <div className="rounded-md border bg-white p-4">
-        <div className="grid gap-3 md:grid-cols-5">
-          <label className="space-y-1 text-sm">
-            <span className="font-medium">Source</span>
-            <select
-              value={filters.sourceId ?? ''}
-              onChange={(event) =>
-                setFilters({
-                  ...filters,
-                  sourceId: event.target.value || undefined,
-                })
-              }
-              className="w-full rounded-md border px-3 py-2"
-            >
-              <option value="">All sources</option>
-              {sources.map((source) => (
-                <option key={source.id} value={source.id}>
-                  {source.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="space-y-1 text-sm">
-            <span className="font-medium">Status</span>
-            <select
-              value={filters.status ?? ''}
-              onChange={(event) =>
-                setFilters({
-                  ...filters,
-                  status: event.target.value || undefined,
-                })
-              }
-              className="w-full rounded-md border px-3 py-2"
-            >
-              <option value="">All statuses</option>
-              {leadStatuses.map((status) => (
-                <option key={status} value={status}>
-                  {formatStatus(status)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <Field
-            label="Min score"
-            value={filters.minScore ?? ''}
-            onChange={(minScore) => setFilters({ ...filters, minScore })}
-          />
-          <Field
-            label="From date"
-            type="date"
-            value={filters.from ?? ''}
-            onChange={(from) => setFilters({ ...filters, from })}
-          />
-          <Field
-            label="To date"
-            type="date"
-            value={filters.to ?? ''}
-            onChange={(to) => setFilters({ ...filters, to })}
-          />
-        </div>
-      </div>
-
-      <div className="overflow-hidden rounded-md border bg-white">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] text-left text-sm">
-            <thead className="border-b bg-slate-50 text-slate-600">
+        </TableWrapper>
+      ) : visibleLeads.length ? (
+        <TableWrapper>
+          <Table minWidth="min-w-[1000px]">
+            <Thead>
               <tr>
-                <th className="px-4 py-3 font-medium">Lead</th>
-                <th className="px-4 py-3 font-medium">Source</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium">Score</th>
-                <th className="px-4 py-3 font-medium">Budget</th>
-                <th className="px-4 py-3 font-medium">Posted</th>
+                <Th>Lead</Th>
+                <Th>Source</Th>
+                <Th>Budget</Th>
+                <Th>Score</Th>
+                <Th>Priority</Th>
+                <Th>Status</Th>
+                <Th>Assigned</Th>
+                <Th>Created</Th>
+                <Th className="text-right">Actions</Th>
               </tr>
-            </thead>
-            <tbody className="divide-y">
-              {loading ? (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="px-4 py-8 text-center text-slate-500"
-                  >
-                    Loading leads...
-                  </td>
+            </Thead>
+            <tbody className="divide-y divide-slate-100">
+              {visibleLeads.map((lead) => (
+                <tr
+                  key={lead.id}
+                  className="align-top transition-colors hover:bg-slate-50"
+                >
+                  <Td>
+                    <Link
+                      href={`/leads/${lead.id}`}
+                      className="font-medium text-slate-900 hover:text-indigo-600"
+                    >
+                      {lead.title}
+                    </Link>
+                    <p className="mt-1 line-clamp-2 max-w-md text-xs text-slate-500">
+                      {lead.description}
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {parseStringArray(lead.skillsJson)
+                        .slice(0, 4)
+                        .map((skill) => (
+                          <span
+                            key={skill}
+                            className="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[11px] text-slate-600"
+                          >
+                            {skill}
+                          </span>
+                        ))}
+                    </div>
+                  </Td>
+                  <Td className="text-slate-600">{lead.sourceName}</Td>
+                  <Td className="whitespace-nowrap text-slate-600">
+                    {formatBudget(lead)}
+                  </Td>
+                  <Td>
+                    <span className="font-semibold text-slate-900">
+                      {lead.analysis?.leadScore ?? '—'}
+                    </span>
+                  </Td>
+                  <Td>
+                    <PriorityBadge priority={lead.analysis?.priority} />
+                  </Td>
+                  <Td>
+                    <StatusBadge status={lead.status} />
+                  </Td>
+                  <Td className="whitespace-nowrap text-slate-600">
+                    {lead.assignedTo?.name ?? '—'}
+                  </Td>
+                  <Td className="whitespace-nowrap text-slate-600">
+                    {formatDate(lead.createdAt)}
+                  </Td>
+                  <Td className="text-right">
+                    <Link
+                      href={`/leads/${lead.id}`}
+                      className="text-sm font-medium text-indigo-600 hover:text-indigo-500"
+                    >
+                      View
+                    </Link>
+                  </Td>
                 </tr>
-              ) : leads.length ? (
-                leads.map((lead) => (
-                  <tr key={lead.id} className="align-top">
-                    <td className="px-4 py-3">
-                      <Link
-                        href={`/leads/${lead.id}`}
-                        className="font-medium text-slate-950 hover:underline"
-                      >
-                        {lead.title}
-                      </Link>
-                      <p className="mt-1 line-clamp-2 max-w-xl text-slate-500">
-                        {lead.description}
-                      </p>
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {parseStringArray(lead.skillsJson)
-                          .slice(0, 4)
-                          .map((skill) => (
-                            <span
-                              key={skill}
-                              className="rounded border px-2 py-0.5 text-xs text-slate-600"
-                            >
-                              {skill}
-                            </span>
-                          ))}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {lead.sourceName}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`rounded-full border px-2 py-1 text-xs font-medium ${statusBadgeClass(lead.status)}`}
-                      >
-                        {formatStatus(lead.status)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      {lead.analysis?.leadScore ?? '-'}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {formatBudget(lead)}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {formatDate(lead.postedAt)}
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="px-4 py-8 text-center text-slate-500"
-                  >
-                    No leads match the current filters.
-                  </td>
-                </tr>
-              )}
+              ))}
             </tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function Field({
-  label,
-  value,
-  onChange,
-  placeholder,
-  required,
-  type = 'text',
-}: {
-  label: string;
-  value?: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-  required?: boolean;
-  type?: string;
-}) {
-  return (
-    <label className="space-y-1 text-sm">
-      <span className="font-medium">{label}</span>
-      <input
-        type={type}
-        value={value ?? ''}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-        required={required}
-        className="w-full rounded-md border px-3 py-2"
-      />
-    </label>
+          </Table>
+        </TableWrapper>
+      ) : (
+        <EmptyState
+          title="No leads found"
+          description="No leads match the current filters. Adjust filters or add a new lead."
+          icon={Inbox}
+          action={
+            <Button variant="accent" onClick={() => setShowForm(true)}>
+              <Plus className="h-4 w-4" />
+              Add Lead
+            </Button>
+          }
+        />
+      )}
+    </div>
   );
 }
 
 function formatBudget(lead: Lead) {
   if (!lead.budgetMin && !lead.budgetMax) {
-    return '-';
+    return '—';
   }
-
   const currency = lead.currency ?? '';
   if (lead.budgetMin && lead.budgetMax) {
     return `${currency} ${lead.budgetMin.toLocaleString()} - ${lead.budgetMax.toLocaleString()}`;
   }
-
   return `${currency} ${(lead.budgetMin ?? lead.budgetMax)?.toLocaleString()}`;
 }
 
 function formatDate(value: string | null) {
-  return value ? new Date(value).toLocaleDateString() : '-';
+  return value ? new Date(value).toLocaleDateString() : '—';
 }
