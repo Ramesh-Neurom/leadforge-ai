@@ -1,0 +1,22 @@
+{
+  "name": "ai-project-hunter",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:frontend": "npm run dev -w @ai-project-hunter/frontend",
+    "dev:backend": "npm run start:dev -w @ai-project-hunter/backend",
+    "build": "npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "format": "prettier --write .",
+    "prisma:generate": "npm run prisma:generate -w @ai-project-hunter/backend",
+    "prisma:migrate": "npm run prisma:migrate -w @ai-project-hunter/backend",
+    "seed": "npm run seed -w @ai-project-hunter/backend"
+  },
+  "devDependencies": {
+    "prettier": "^3.3.3"
+  }
+}
