@@ -1,15 +1,10 @@
 'use client';
 
 import { FormEvent, useEffect, useState } from 'react';
-import {
-  Database,
-  Plug,
-  RefreshCw,
-  Rss,
-  TestTube2,
-} from 'lucide-react';
+import { Database, Plug, RefreshCw, Rss, TestTube2 } from 'lucide-react';
 import {
   LeadSource,
+  LeadSourceSyncResult,
   createLeadSource,
   fetchLeadSources,
   syncLeadSource,
@@ -52,6 +47,9 @@ export default function SettingsPage() {
   const [name, setName] = useState('Generic RSS Leads');
   const [feedUrl, setFeedUrl] = useState('');
   const [message, setMessage] = useState('');
+  const [syncResult, setSyncResult] = useState<LeadSourceSyncResult | null>(
+    null,
+  );
   const [busyId, setBusyId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
@@ -91,12 +89,14 @@ export default function SettingsPage() {
   async function handleAction(source: LeadSource, action: 'test' | 'sync') {
     setBusyId(`${source.id}:${action}`);
     setMessage('');
+    setSyncResult(null);
     try {
       const result =
         action === 'test'
           ? await testLeadSource(source.id)
           : await syncLeadSource(source.id);
       setMessage(result.message);
+      setSyncResult(action === 'sync' ? result : null);
       await loadSources();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Request failed');
@@ -159,6 +159,36 @@ export default function SettingsPage() {
         <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-700">
           {message}
         </div>
+      ) : null}
+
+      {syncResult ? (
+        <Card>
+          <h2 className="text-base font-semibold text-slate-900">
+            Last sync result
+          </h2>
+          <div className="mt-3 grid gap-3 sm:grid-cols-3 lg:grid-cols-7">
+            <SyncStat label="Fetched" value={syncResult.totalFetched} />
+            <SyncStat label="Imported" value={syncResult.imported} />
+            <SyncStat label="Duplicates" value={syncResult.skippedDuplicate} />
+            <SyncStat
+              label="Job posts"
+              value={syncResult.filteredOutJobPosts}
+            />
+            <SyncStat
+              label="Irrelevant"
+              value={syncResult.filteredOutIrrelevant}
+            />
+            <SyncStat label="Analyzed" value={syncResult.analyzed} />
+            <SyncStat label="Proposals" value={syncResult.proposalGenerated} />
+          </div>
+          {syncResult.filteredOutReasons?.length ? (
+            <ul className="mt-3 list-disc space-y-1 pl-5 text-xs text-slate-500">
+              {syncResult.filteredOutReasons.slice(0, 5).map((reason) => (
+                <li key={reason}>{reason}</li>
+              ))}
+            </ul>
+          ) : null}
+        </Card>
       ) : null}
 
       {/* Source cards */}
@@ -237,6 +267,21 @@ export default function SettingsPage() {
           icon={Rss}
         />
       )}
+    </div>
+  );
+}
+
+function SyncStat({
+  label,
+  value,
+}: {
+  label: string;
+  value: number | undefined;
+}) {
+  return (
+    <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+      <p className="text-xs text-slate-500">{label}</p>
+      <p className="text-lg font-semibold text-slate-900">{value ?? 0}</p>
     </div>
   );
 }

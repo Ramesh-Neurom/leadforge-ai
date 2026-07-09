@@ -14,12 +14,16 @@ interface StrictJsonCompletionInput {
   };
 }
 
-interface ZaiChatCompletionResponse {
-  choices?: Array<{
-    message?: {
-      content?: string;
+interface GeminiGenerateContentResponse {
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{
+        text?: string;
+      }>;
     };
+    finishReason?: string;
   }>;
+  promptFeedback?: unknown;
   error?: {
     message?: string;
   };
@@ -27,77 +31,93 @@ interface ZaiChatCompletionResponse {
 
 @Injectable()
 export class OpenAiProvider {
-  constructor(private readonly config: ConfigService) { }
+  constructor(private readonly config: ConfigService) {}
 
   async createStrictJsonCompletion<T>(
     input: StrictJsonCompletionInput,
   ): Promise<T> {
-    const apiKey = this.config.get<string>('ZAI_API_KEY');
+    const apiKey = this.config.get<string>('GEMINI_API_KEY');
 
     if (!apiKey || apiKey.trim().length < 10) {
       throw new BadRequestException(
-        'Configure a valid ZAI_API_KEY before using AI agents',
+        'Configure a valid GEMINI_API_KEY before using AI agents',
       );
     }
 
-    const baseUrl =
-      this.config.get<string>('ZAI_BASE_URL') ??
-      'https://api.z.ai/api/paas/v4/chat/completions';
+    const model = this.config.get<string>('GEMINI_MODEL') ?? 'gemini-3.1-flash-lite';
 
-    const model = this.config.get<string>('ZAI_MODEL') ?? 'glm-5.1';
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
-    const response = await fetch(`${baseUrl}/chat/completions`, {
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${apiKey}`,
+        'x-goog-api-key': apiKey,
         'Content-Type': 'application/json',
-        'Accept-Language': 'en-US,en',
       },
       body: JSON.stringify({
-        model,
-        temperature: 0.2,
-        messages: [
-          {
-            role: 'system',
-            content: `${input.systemPrompt}
+        systemInstruction: {
+          parts: [
+            {
+              text: `${input.systemPrompt}
 
 Return ONLY valid JSON.
 Do not include markdown.
 Do not include explanation outside JSON.
+
 The JSON must follow this schema:
 ${JSON.stringify(input.jsonSchema.schema, null, 2)}`,
-          },
+            },
+          ],
+        },
+        contents: [
           {
             role: 'user',
-            content: input.userPrompt,
+            parts: [
+              {
+                text: input.userPrompt,
+              },
+            ],
           },
         ],
-        response_format: {
-          type: 'json_object',
+        generationConfig: {
+          temperature: 0.2,
+          responseMimeType: 'application/json',
         },
       }),
     });
 
-    const payload = (await response.json()) as ZaiChatCompletionResponse;
+    const payload = (await response.json()) as GeminiGenerateContentResponse;
 
-    console.log("check payload data", payload)
+    console.log('Gemini raw payload:', JSON.stringify(payload, null, 2));
 
     if (!response.ok) {
       throw new ServiceUnavailableException(
-        payload.error?.message ?? 'Z.AI GLM request failed',
+        payload.error?.message ?? 'Gemini request failed',
       );
     }
 
-    const content = payload.choices?.[0]?.message?.content;
+    const content = payload.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!content) {
-      throw new ServiceUnavailableException('Z.AI returned an empty response');
+      console.error('Gemini empty response payload:', payload);
+
+      throw new ServiceUnavailableException(
+        `Gemini returned empty response. FinishReason: ${
+          payload.candidates?.[0]?.finishReason ?? 'UNKNOWN'
+        }`,
+      );
     }
 
+    const cleanedContent = content
+      .replace(/```json/g, '')
+      .replace(/```/g, '')
+      .trim();
+
     try {
-      return JSON.parse(content) as T;
+      return JSON.parse(cleanedContent) as T;
     } catch {
-      throw new ServiceUnavailableException('Z.AI returned invalid JSON');
+      console.error('Invalid Gemini JSON:', cleanedContent);
+      throw new ServiceUnavailableException('Gemini returned invalid JSON');
     }
   }
 }

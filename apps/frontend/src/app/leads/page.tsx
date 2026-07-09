@@ -2,14 +2,7 @@
 
 import Link from 'next/link';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
-import {
-  CheckCircle2,
-  Inbox,
-  Plus,
-  Target,
-  Trophy,
-  X,
-} from 'lucide-react';
+import { CheckCircle2, Inbox, Plus, Target, Trophy, X } from 'lucide-react';
 import {
   Lead,
   LeadFilters,
@@ -31,13 +24,7 @@ import { PriorityBadge } from '@/components/ui/PriorityBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SearchFilterBar } from '@/components/ui/SearchFilterBar';
 import { Input, Select, LabeledField, Textarea } from '@/components/ui/Field';
-import {
-  Table,
-  TableWrapper,
-  Td,
-  Th,
-  Thead,
-} from '@/components/ui/DataTable';
+import { Table, TableWrapper, Td, Th, Thead } from '@/components/ui/DataTable';
 
 const emptyForm: LeadFormPayload = {
   sourceId: '',
@@ -143,7 +130,11 @@ export default function LeadsPage() {
         subtitle="Capture, qualify, and track sales opportunities."
         actions={
           <Button variant="accent" onClick={() => setShowForm((v) => !v)}>
-            {showForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+            {showForm ? (
+              <X className="h-4 w-4" />
+            ) : (
+              <Plus className="h-4 w-4" />
+            )}
             {showForm ? 'Close' : 'Add Lead'}
           </Button>
         }
@@ -157,11 +148,36 @@ export default function LeadsPage() {
 
       {/* Summary */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
-        <StatCard label="Total leads" value={allLeads.length} icon={Inbox} accent="indigo" />
-        <StatCard label="New" value={allLeads.filter((l) => l.status === 'NEW').length} icon={Target} accent="blue" />
-        <StatCard label="Qualified" value={allLeads.filter((l) => l.status === 'QUALIFIED').length} icon={CheckCircle2} accent="emerald" />
-        <StatCard label="Proposal sent" value={allLeads.filter((l) => l.status === 'PROPOSAL_SENT').length} icon={Target} accent="violet" />
-        <StatCard label="Won" value={allLeads.filter((l) => l.status === 'WON').length} icon={Trophy} accent="amber" />
+        <StatCard
+          label="Total leads"
+          value={allLeads.length}
+          icon={Inbox}
+          accent="indigo"
+        />
+        <StatCard
+          label="New"
+          value={allLeads.filter((l) => l.status === 'NEW').length}
+          icon={Target}
+          accent="blue"
+        />
+        <StatCard
+          label="Qualified"
+          value={allLeads.filter((l) => l.status === 'QUALIFIED').length}
+          icon={CheckCircle2}
+          accent="emerald"
+        />
+        <StatCard
+          label="Proposal sent"
+          value={allLeads.filter((l) => l.status === 'PROPOSAL_SENT').length}
+          icon={Target}
+          accent="violet"
+        />
+        <StatCard
+          label="Won"
+          value={allLeads.filter((l) => l.status === 'WON').length}
+          icon={Trophy}
+          accent="amber"
+        />
       </div>
 
       {/* Create form */}
@@ -360,6 +376,7 @@ export default function LeadsPage() {
             <Thead>
               <tr>
                 <Th>Lead</Th>
+                <Th>Type</Th>
                 <Th>Source</Th>
                 <Th>Budget</Th>
                 <Th>Score</Th>
@@ -398,6 +415,9 @@ export default function LeadsPage() {
                           </span>
                         ))}
                     </div>
+                  </Td>
+                  <Td>
+                    <OpportunityBadge type={lead.opportunityType} />
                   </Td>
                   <Td className="text-slate-600">{lead.sourceName}</Td>
                   <Td className="whitespace-nowrap text-slate-600">
@@ -459,6 +479,25 @@ function formatBudget(lead: Lead) {
     return `${currency} ${lead.budgetMin.toLocaleString()} - ${lead.budgetMax.toLocaleString()}`;
   }
   return `${currency} ${(lead.budgetMin ?? lead.budgetMax)?.toLocaleString()}`;
+}
+
+function OpportunityBadge({ type }: { type: Lead['opportunityType'] }) {
+  if (!type) {
+    return <span className="text-slate-400">-</span>;
+  }
+
+  const isProject = type === 'PROJECT_LEAD';
+  return (
+    <span
+      className={`whitespace-nowrap rounded-full border px-2 py-1 text-xs font-medium ${
+        isProject
+          ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+          : 'border-blue-200 bg-blue-50 text-blue-700'
+      }`}
+    >
+      {type}
+    </span>
+  );
 }
 
 function formatDate(value: string | null) {

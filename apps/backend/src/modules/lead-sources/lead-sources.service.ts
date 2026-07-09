@@ -5,6 +5,11 @@ import {
 } from '@nestjs/common';
 import { LeadSource, LeadStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AiLeadAnalysisService } from '../ai-agents/ai-lead-analysis.service';
+import {
+  LeadOpportunityFilterConfig,
+  LeadOpportunityFilterService,
+} from './lead-opportunity-filter.service';
 
 const REMOTEOK_API_URL = 'https://remoteok.com/api';
 const WWR_PROGRAMMING_RSS =
@@ -42,7 +47,11 @@ export interface NormalizedLead {
 
 @Injectable()
 export class LeadSourcesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly opportunityFilter: LeadOpportunityFilterService,
+    private readonly aiLeadAnalysis: AiLeadAnalysisService,
+  ) {}
 
   findAll() {
     return this.prisma.leadSource.findMany({ orderBy: { name: 'asc' } });
@@ -100,15 +109,38 @@ export class LeadSourcesService {
     const source = await this.findSource(id);
 
     try {
+      const config = syncConfig(source.configJson);
       const fetched = await this.fetchFromSource(source);
       let imported = 0;
-      let skipped = 0;
+      let skippedDuplicate = 0;
+      let filteredOutJobPosts = 0;
+      let filteredOutIrrelevant = 0;
+      let analyzed = 0;
       const leads = [];
+      const filteredOutReasons: string[] = [];
 
       for (const item of fetched) {
+        const classification = this.opportunityFilter.classify(item, config);
+        const shouldImport =
+          classification.opportunityType === 'PROJECT_LEAD' ||
+          (classification.opportunityType === 'CONTRACT_LEAD' &&
+            config.allowContractLeads);
+
+        if (!shouldImport) {
+          if (classification.opportunityType === 'IRRELEVANT') {
+            filteredOutIrrelevant += 1;
+          } else {
+            filteredOutJobPosts += 1;
+          }
+          if (filteredOutReasons.length < 5) {
+            filteredOutReasons.push(`${item.title}: ${classification.reason}`);
+          }
+          continue;
+        }
+
         const duplicate = await this.findDuplicate(source.name, item);
         if (duplicate) {
-          skipped += 1;
+          skippedDuplicate += 1;
           continue;
         }
 
@@ -125,21 +157,34 @@ export class LeadSourcesService {
             skillsJson: item.skillsJson ?? [],
             postedAt: item.postedAt ?? null,
             status: LeadStatus.NEW,
+            opportunityType: classification.opportunityType,
+            filterReason: classification.reason,
+            filterScore: classification.score,
           },
         });
 
         imported += 1;
-        leads.push(lead);
+        if (config.autoAnalyze) {
+          leads.push(await this.analyzeImportedLead(lead.id));
+          analyzed += 1;
+        } else {
+          leads.push(lead);
+        }
       }
 
-      const message = `Imported ${imported}, skipped ${skipped}, checked ${fetched.length}.`;
+      const message = `Fetched ${fetched.length}. Imported ${imported} project/contract leads. Filtered out ${filteredOutJobPosts} job postings and ${filteredOutIrrelevant} irrelevant posts. Skipped ${skippedDuplicate} duplicates.`;
       await this.updateSyncState(source.id, 'SYNC_OK', message);
 
       return {
+        totalFetched: fetched.length,
+        passedFilter: imported + skippedDuplicate,
         imported,
-        skipped,
-        total: fetched.length,
-        queuedForAnalysis: false,
+        skippedDuplicate,
+        filteredOutJobPosts,
+        filteredOutIrrelevant,
+        filteredOutReasons,
+        analyzed,
+        proposalGenerated: 0,
         message,
         leads,
       };
@@ -311,6 +356,59 @@ export class LeadSourcesService {
       },
     });
   }
+
+  private async analyzeImportedLead(id: string) {
+    const lead = await this.prisma.lead.findUnique({ where: { id } });
+    if (!lead) {
+      throw new NotFoundException('Lead not found');
+    }
+
+    const result = await this.aiLeadAnalysis.analyzeLead({
+      title: lead.title,
+      description: lead.description,
+      sourceName: lead.sourceName,
+      clientName: lead.clientName,
+      clientCountry: lead.clientCountry,
+      budgetType: lead.budgetType,
+      budgetMin: lead.budgetMin,
+      budgetMax: lead.budgetMax,
+      currency: lead.currency,
+      skills: parseTags(lead.skillsJson),
+    });
+
+    await this.prisma.leadAnalysis.upsert({
+      where: { leadId: id },
+      update: {
+        leadScore: result.lead_score,
+        priority: result.priority,
+        category: result.category,
+        requiredSkillsJson: result.required_skills,
+        budgetQuality: result.budget_quality,
+        clientSeriousness: result.client_seriousness,
+        redFlagsJson: result.red_flags,
+        aiSummary: result.ai_summary,
+        recommendedAction: result.recommended_action,
+      },
+      create: {
+        leadId: id,
+        leadScore: result.lead_score,
+        priority: result.priority,
+        category: result.category,
+        requiredSkillsJson: result.required_skills,
+        budgetQuality: result.budget_quality,
+        clientSeriousness: result.client_seriousness,
+        redFlagsJson: result.red_flags,
+        aiSummary: result.ai_summary,
+        recommendedAction: result.recommended_action,
+      },
+    });
+
+    return this.prisma.lead.update({
+      where: { id },
+      data: { status: LeadStatus.AI_REVIEWED },
+      include: { analysis: true },
+    });
+  }
 }
 
 type SourceConfig = Record<string, unknown>;
@@ -327,6 +425,27 @@ function toInputJson(value: unknown) {
   }
 
   return value as Prisma.InputJsonValue;
+}
+
+function syncConfig(value: Prisma.JsonValue | null | undefined) {
+  const config = configObject(value);
+  return {
+    importOnlyProjectLeads:
+      optionalBoolean(config.importOnlyProjectLeads) ?? true,
+    allowContractLeads: optionalBoolean(config.allowContractLeads) ?? true,
+    strictJobPostFilter: optionalBoolean(config.strictJobPostFilter) ?? true,
+    autoAnalyze: optionalBoolean(config.autoAnalyze) ?? false,
+    autoGenerateProposal: false,
+    keywords: parseTags(config.keywords),
+    excludeKeywords: parseTags(config.excludeKeywords),
+  } satisfies LeadOpportunityFilterConfig & {
+    autoAnalyze: boolean;
+    autoGenerateProposal: false;
+  };
+}
+
+function optionalBoolean(value: unknown) {
+  return typeof value === 'boolean' ? value : undefined;
 }
 
 function defaultType(integrationType: string) {

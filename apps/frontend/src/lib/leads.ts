@@ -58,6 +58,9 @@ export interface Lead {
   currency: string | null;
   skillsJson: unknown;
   postedAt: string | null;
+  opportunityType: 'PROJECT_LEAD' | 'CONTRACT_LEAD' | null;
+  filterReason: string | null;
+  filterScore: number | null;
   status: LeadStatus;
   assignedToId: string | null;
   createdAt: string;

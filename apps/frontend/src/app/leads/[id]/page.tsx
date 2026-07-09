@@ -766,6 +766,8 @@ export default function LeadDetailPage() {
           <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-card">
             <h2 className="font-semibold">Opportunity</h2>
             <div className="mt-4 space-y-3">
+              <Info label="Opportunity type" value={lead.opportunityType} />
+              <Info label="Filter reason" value={lead.filterReason} />
               <Info label="Budget" value={formatBudget(lead)} />
               <Info label="Budget type" value={lead.budgetType} />
               <Info label="Posted" value={formatDate(lead.postedAt)} />

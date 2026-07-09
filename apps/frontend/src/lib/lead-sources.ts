@@ -25,9 +25,14 @@ export interface LeadSourcePayload {
 export interface LeadSourceSyncResult {
   ok?: boolean;
   imported?: number;
-  skipped?: number;
-  total?: number;
-  queuedForAnalysis?: boolean;
+  totalFetched?: number;
+  passedFilter?: number;
+  skippedDuplicate?: number;
+  filteredOutJobPosts?: number;
+  filteredOutIrrelevant?: number;
+  filteredOutReasons?: string[];
+  analyzed?: number;
+  proposalGenerated?: number;
   message: string;
   sample?: unknown[];
 }

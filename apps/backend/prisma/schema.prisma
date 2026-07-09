@@ -54,6 +54,9 @@ model Lead {
   currency         String?
   skillsJson       Json?
   postedAt         DateTime?
+  opportunityType  String?
+  filterReason     String?
+  filterScore      Int?
   status           LeadStatus     @default(NEW)
   assignedToId     String?
   createdAt        DateTime       @default(now())
