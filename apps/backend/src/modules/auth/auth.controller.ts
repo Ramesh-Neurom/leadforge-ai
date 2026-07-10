@@ -3,19 +3,11 @@ import { Response } from 'express';
 import { AuthService } from './auth.service';
 import { AuthRequest, JwtAuthGuard } from './jwt-auth.guard';
 
-// const cookieOptions = {
-//   httpOnly: true,
-//   sameSite: 'lax' as const,
-//   secure: process.env.NODE_ENV === 'production',
-//   path: '/',
-//   maxAge: 24 * 60 * 60 * 1000,
-// };
-
 const isProduction = process.env.NODE_ENV === 'production';
 
 const cookieOptions = {
   httpOnly: true,
-  sameSite: isProduction ? 'none' as const : 'lax' as const,
+  sameSite: isProduction ? ('none' as const) : ('lax' as const),
   secure: isProduction,
   path: '/',
   maxAge: 24 * 60 * 60 * 1000,
@@ -23,7 +15,7 @@ const cookieOptions = {
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) { }
+  constructor(private readonly auth: AuthService) {}
 
   @Post('login')
   async login(
