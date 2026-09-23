@@ -137,24 +137,160 @@ export class GovernmentService {
     if (s.status !== 'ACTIVE')
       throw new BadRequestException('Source is disabled');
     const result = await this.testSource(id);
-    await this.db.tenderSource.update({
-      where: { id },
-      data: {
-        lastSyncAt: new Date(),
-        lastSyncStatus: 'MANUAL_REQUIRED',
-        lastSyncMessage: result.message,
-      },
-    });
-    return {
-      ...result,
-      status: 'MANUAL_REQUIRED',
-      fetched: 0,
-      relevant: 0,
-      imported: 0,
-      updated: 0,
-      skipped: 0,
-      failed: 0,
-    };
+    if (!result.automaticDiscovery) {
+      await this.db.tenderSource.update({
+        where: { id },
+        data: {
+          lastSyncAt: new Date(),
+          lastSyncStatus: result.ok ? 'MANUAL_REQUIRED' : 'FAILED',
+          lastSyncMessage: result.message,
+        },
+      });
+      return {
+        ...result,
+        status: result.ok ? 'MANUAL_REQUIRED' : 'FAILED',
+        fetched: 0,
+        relevant: 0,
+        imported: 0,
+        updated: 0,
+        skipped: 0,
+        failed: 0,
+      };
+    }
+
+    const adapter = adapterFor(s.integrationType);
+    const config = S.parse(S.sourceConfig, s.configJson);
+    let fetched = 0;
+    let imported = 0;
+    let updated = 0;
+    let skipped = 0;
+    let failed = 0;
+    let relevantCount = 0;
+
+    try {
+      const discovered = await adapter.search(config);
+      fetched = discovered.length;
+
+      const capabilities = await this.db.companyCapability.findMany({
+        where: { active: true },
+      });
+
+      for (const item of discovered) {
+        try {
+          const externalId =
+            (item.externalId || item.bidNumber)?.trim().toUpperCase() ||
+            (item.sourceUrl ? new URL(item.sourceUrl).href : randomUUID());
+
+          const classified = relevance(
+            `${item.title ?? ''} ${item.description ?? ''} ${item.scopeOfWork ?? ''}`,
+            config,
+            capabilities,
+          );
+
+          if (classified.relevance === 'RELEVANT') {
+            relevantCount++;
+          }
+
+          const existing = await this.db.tender.findUnique({
+            where: {
+              tenderSourceId_externalId: {
+                tenderSourceId: s.id,
+                externalId,
+              },
+            },
+          });
+
+          if (!existing) {
+            await this.db.$transaction(async (tx) => {
+              const created = await tx.tender.create({
+                data: {
+                  ...item,
+                  tenderSourceId: s.id,
+                  externalId,
+                  title:
+                    item.title ||
+                    item.bidNumber ||
+                    'Imported tender — details required',
+                  ...classified,
+                  status: 'NEW',
+                  lastSyncedAt: new Date(),
+                },
+              });
+              await activity(tx, 'SYSTEM', 'TENDER_IMPORTED', created.id);
+            });
+            imported++;
+          } else {
+            const isChanged =
+              existing.title !== item.title ||
+              existing.closesAt?.getTime() !== item.closesAt?.getTime() ||
+              existing.description !== item.description;
+
+            if (isChanged && existing.status === 'NEW') {
+              await this.db.$transaction(async (tx) => {
+                await tx.tender.update({
+                  where: { id: existing.id },
+                  data: {
+                    title: item.title || existing.title,
+                    closesAt: item.closesAt ?? existing.closesAt,
+                    description: item.description ?? existing.description,
+                    lastSyncedAt: new Date(),
+                  },
+                });
+                await activity(
+                  tx,
+                  'SYSTEM',
+                  'TENDER_SYNC_UPDATED',
+                  existing.id,
+                );
+              });
+              updated++;
+            } else {
+              await this.db.tender.update({
+                where: { id: existing.id },
+                data: { lastSyncedAt: new Date() },
+              });
+              skipped++;
+            }
+          }
+        } catch {
+          failed++;
+        }
+      }
+
+      const syncMessage = `Discovered ${fetched} tender(s); imported ${imported}, updated ${updated}, skipped ${skipped}.`;
+      await this.db.tenderSource.update({
+        where: { id },
+        data: {
+          lastSyncAt: new Date(),
+          lastSyncStatus: 'SUCCESS',
+          lastSyncMessage: syncMessage,
+        },
+      });
+
+      return {
+        ok: true,
+        automaticDiscovery: true,
+        message: syncMessage,
+        status: 'SUCCESS',
+        fetched,
+        relevant: relevantCount,
+        imported,
+        updated,
+        skipped,
+        failed,
+      };
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      await this.db.tenderSource.update({
+        where: { id },
+        data: {
+          lastSyncAt: new Date(),
+          lastSyncStatus: 'FAILED',
+          lastSyncMessage: errMsg,
+        },
+      });
+      throw err;
+    }
   }
   async intake(input: unknown, actor: string) {
     const parsed = S.parse(S.tenderInput, input);

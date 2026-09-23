@@ -10,3 +10,6 @@ Dockerfile.local
 notes
 storage/
 *.tsbuildinfo
+
+gem-debug.png
+gem-debug.html
