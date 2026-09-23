@@ -1,0 +1,53 @@
+{
+  "name": "GeM Software Services",
+  "integrationType": "GEM_BIDPLUS",
+  "status": "ACTIVE",
+  "configJson": {
+    "keywords": [
+      "software development",
+      "application development",
+      "web application",
+      "mobile application",
+      "enterprise software",
+      "system integration",
+      "API integration",
+      "cloud",
+      "AWS",
+      "Azure",
+      "DevOps",
+      "cybersecurity",
+      "artificial intelligence",
+      "machine learning",
+      "data analytics",
+      "IoT platform",
+      "digital twin",
+      "GIS",
+      "smart city software",
+      "remote monitoring",
+      "managed services",
+      "application maintenance",
+      "technical consulting",
+      "implementation services",
+      "solution deployment",
+      "enterprise integration",
+      "on-site implementation",
+      "custom implementation",
+      "field deployment",
+      "operational software deployment",
+      "managed implementation"
+    ],
+    "excludeKeywords": [
+      "supply of laptops",
+      "supply of LED bulbs",
+      "supply of LED lights"
+    ],
+    "hardwareKeywords": [
+      "hardware supply",
+      "supply and installation of hardware",
+      "procurement of hardware",
+      "laptops",
+      "LED bulbs"
+    ],
+    "syncIntervalHours": 4
+  }
+}

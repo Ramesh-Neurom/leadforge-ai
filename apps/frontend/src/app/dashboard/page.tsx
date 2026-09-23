@@ -97,8 +97,7 @@ export default function DashboardPage() {
       leads
         .filter((lead) => lead.analysis?.priority?.toUpperCase() === 'HIGH')
         .sort(
-          (a, b) =>
-            (b.analysis?.leadScore ?? 0) - (a.analysis?.leadScore ?? 0),
+          (a, b) => (b.analysis?.leadScore ?? 0) - (a.analysis?.leadScore ?? 0),
         )
         .slice(0, 6),
     [leads],
@@ -140,6 +139,24 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card className="p-5">
+          <h2 className="font-semibold">Private Opportunities</h2>
+          <p className="text-sm text-slate-500">
+            Leads, proposals, conversations and revenue pipeline.
+          </p>
+        </Card>
+        <Link href="/government">
+          <Card className="h-full border-indigo-200 bg-indigo-50 p-5">
+            <h2 className="font-semibold text-indigo-800">
+              Government Procurement →
+            </h2>
+            <p className="text-sm text-indigo-700">
+              Tender intelligence, evidence, compliance and bid preparation.
+            </p>
+          </Card>
+        </Link>
+      </div>
       {/* Welcome */}
       <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-900 p-6 text-white shadow-card sm:p-8">
         <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-indigo-500/20 blur-2xl" />
@@ -175,14 +192,56 @@ export default function DashboardPage() {
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="Total Leads" value={stats.total} icon={Inbox} accent="indigo" />
-        <StatCard label="New Leads" value={stats.new} icon={Target} accent="blue" />
-        <StatCard label="Qualified" value={stats.qualified} icon={CheckCircle2} accent="emerald" />
-        <StatCard label="Proposals Sent" value={stats.proposalsSent} icon={FileText} accent="violet" />
-        <StatCard label="Client Replies" value={stats.clientReplies} icon={MessageSquare} accent="sky" />
-        <StatCard label="Won Projects" value={stats.won} icon={Trophy} accent="amber" />
-        <StatCard label="Revenue Pipeline" value={revenueLabel} icon={Wallet} accent="emerald" hint="Open opportunities" />
-        <StatCard label="Follow-ups Due" value={stats.due} icon={TrendingUp} accent="rose" hint="Due today" />
+        <StatCard
+          label="Total Leads"
+          value={stats.total}
+          icon={Inbox}
+          accent="indigo"
+        />
+        <StatCard
+          label="New Leads"
+          value={stats.new}
+          icon={Target}
+          accent="blue"
+        />
+        <StatCard
+          label="Qualified"
+          value={stats.qualified}
+          icon={CheckCircle2}
+          accent="emerald"
+        />
+        <StatCard
+          label="Proposals Sent"
+          value={stats.proposalsSent}
+          icon={FileText}
+          accent="violet"
+        />
+        <StatCard
+          label="Client Replies"
+          value={stats.clientReplies}
+          icon={MessageSquare}
+          accent="sky"
+        />
+        <StatCard
+          label="Won Projects"
+          value={stats.won}
+          icon={Trophy}
+          accent="amber"
+        />
+        <StatCard
+          label="Revenue Pipeline"
+          value={revenueLabel}
+          icon={Wallet}
+          accent="emerald"
+          hint="Open opportunities"
+        />
+        <StatCard
+          label="Follow-ups Due"
+          value={stats.due}
+          icon={TrendingUp}
+          accent="rose"
+          hint="Due today"
+        />
       </div>
 
       {/* Recent + High priority */}

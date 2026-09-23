@@ -14,6 +14,7 @@ import { ProposalsModule } from './modules/proposals/proposals.module';
 import { QuotationsModule } from './modules/quotations/quotations.module';
 import { UsersModule } from './modules/users/users.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { GovernmentModule } from './modules/government/government.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { PrismaModule } from './prisma/prisma.module';
       }),
     }),
     PrismaModule,
+    GovernmentModule,
     AuthModule,
     ConversationsModule,
     CrmModule,

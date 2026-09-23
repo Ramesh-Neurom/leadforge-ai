@@ -44,11 +44,13 @@ export class OpenAiProvider {
       );
     }
 
-    const model = this.config.get<string>('GEMINI_MODEL') ?? 'gemini-3.1-flash-lite';
+    const model =
+      this.config.get<string>('GEMINI_MODEL') ?? 'gemini-3.1-flash-lite';
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
     const response = await fetch(url, {
+      signal: AbortSignal.timeout(90000),
       method: 'POST',
       headers: {
         'x-goog-api-key': apiKey,
@@ -88,8 +90,6 @@ ${JSON.stringify(input.jsonSchema.schema, null, 2)}`,
 
     const payload = (await response.json()) as GeminiGenerateContentResponse;
 
-    console.log('Gemini raw payload:', JSON.stringify(payload, null, 2));
-
     if (!response.ok) {
       throw new ServiceUnavailableException(
         payload.error?.message ?? 'Gemini request failed',
@@ -99,8 +99,6 @@ ${JSON.stringify(input.jsonSchema.schema, null, 2)}`,
     const content = payload.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!content) {
-      console.error('Gemini empty response payload:', payload);
-
       throw new ServiceUnavailableException(
         `Gemini returned empty response. FinishReason: ${
           payload.candidates?.[0]?.finishReason ?? 'UNKNOWN'
@@ -116,7 +114,6 @@ ${JSON.stringify(input.jsonSchema.schema, null, 2)}`,
     try {
       return JSON.parse(cleanedContent) as T;
     } catch {
-      console.error('Invalid Gemini JSON:', cleanedContent);
       throw new ServiceUnavailableException('Gemini returned invalid JSON');
     }
   }

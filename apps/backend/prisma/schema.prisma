@@ -284,3 +284,344 @@ enum InvoicePaymentStatus {
   OVERDUE
   CANCELLED
 }
+
+enum TenderIntegration {
+  GEM_BIDPLUS
+  MANUAL_GOVT_TENDER
+}
+
+enum TenderStatus {
+  NEW
+  RELEVANCE_REVIEW
+  ANALYZED
+  QUALIFICATION_PENDING
+  QUALIFIED
+  NOT_QUALIFIED
+  NOT_PURSUING
+  BID_PREPARATION
+  INTERNAL_REVIEW
+  READY_FOR_SUBMISSION
+  SUBMITTED
+  AWARDED
+  LOST
+  CANCELLED
+  EXPIRED
+}
+
+enum ComplianceStatus {
+  COMPLIANT
+  PARTIALLY_COMPLIANT
+  NOT_COMPLIANT
+  NEEDS_VERIFICATION
+  NOT_APPLICABLE
+}
+
+enum BidStatus {
+  IN_PREPARATION
+  TECHNICAL_REVIEW
+  DOCUMENT_REVIEW
+  COMMERCIAL_REVIEW
+  READY_FOR_SUBMISSION
+  SUBMITTED_MANUALLY
+  NOT_PURSUED
+  WON
+  LOST
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+}
+
+enum MatchClassification {
+  STRONG_MATCH
+  POSSIBLE_MATCH
+  WEAK_MATCH
+  NOT_RELEVANT
+}
+
+model TenderSource {
+  id              String            @id @default(cuid())
+  name            String
+  integrationType TenderIntegration
+  status          String            @default("ACTIVE")
+  configJson      Json
+  lastSyncAt      DateTime?
+  lastSyncStatus  String?
+  lastSyncMessage String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  tenders         Tender[]
+}
+
+model Tender {
+  id                String                   @id @default(cuid())
+  tenderSourceId    String
+  externalId        String
+  bidNumber         String?
+  title             String
+  description       String?
+  buyerName         String?
+  ministry          String?
+  department        String?
+  state             String?
+  locationText      String?
+  serviceCategory   String?
+  tenderType        String?
+  estimatedValue    Decimal?                 @db.Decimal(18, 2)
+  currency          String                   @default("INR")
+  publishedAt       DateTime?
+  closesAt          DateTime?
+  emdAmount         Decimal?                 @db.Decimal(18, 2)
+  emdRequired       Boolean?
+  msePreference     Boolean?
+  startupPreference Boolean?
+  contractDuration  String?
+  scopeOfWork       String?
+  requirements      Json?
+  relevance         String                   @default("POSSIBLY_RELEVANT")
+  relevanceReason   String?
+  status            TenderStatus             @default(NEW)
+  sourceUrl         String?
+  lastSyncedAt      DateTime?
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+  source            TenderSource             @relation(fields: [tenderSourceId], references: [id])
+  documents         TenderDocument[]
+  analysis          TenderAnalysis?
+  eligibility       TenderEligibility[]
+  compliance        TenderComplianceItem[]
+  revisions         TenderRevision[]
+  workspace         BidWorkspace?
+  activities        GovernmentActivity[]
+  notifications     GovernmentNotification[]
+
+  @@unique([tenderSourceId, externalId])
+  @@index([status, closesAt])
+  @@index([state, serviceCategory])
+}
+
+model TenderRevision {
+  id        String   @id @default(cuid())
+  tenderId  String
+  fieldName String
+  oldValue  String?
+  newValue  String?
+  createdAt DateTime @default(now())
+  tender    Tender   @relation(fields: [tenderId], references: [id], onDelete: Cascade)
+
+  @@index([tenderId, createdAt])
+}
+
+model TenderDocument {
+  id               String   @id @default(cuid())
+  tenderId         String
+  documentType     String
+  name             String
+  sourceUrl        String?
+  storageKey       String
+  mimeType         String
+  size             Int
+  sha256           String
+  extractedText    String?
+  processingStatus String   @default("PENDING")
+  processingError  String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  tender           Tender   @relation(fields: [tenderId], references: [id], onDelete: Cascade)
+
+  @@unique([tenderId, sha256])
+}
+
+model TenderAnalysis {
+  id                    String              @id @default(cuid())
+  tenderId              String              @unique
+  executiveSummary      String
+  serviceClassification String
+  overallMatchScore     Int
+  matchClassification   MatchClassification
+  rawStructuredResult   Json
+  inputHash             String
+  modelMetadata         Json
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  tender                Tender              @relation(fields: [tenderId], references: [id], onDelete: Cascade)
+
+  @@index([matchClassification, overallMatchScore])
+}
+
+model TenderEligibility {
+  id               String           @id @default(cuid())
+  tenderId         String
+  requirementType  String
+  requirement      String
+  requiredValue    String?
+  companyValue     String?
+  status           ComplianceStatus @default(NEEDS_VERIFICATION)
+  evidence         String?
+  notes            String?
+  sourceDocumentId String?
+  sourcePage       Int?
+  confirmedById    String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  tender           Tender           @relation(fields: [tenderId], references: [id], onDelete: Cascade)
+
+  @@unique([tenderId, requirement])
+}
+
+model TenderComplianceItem {
+  id                String           @id @default(cuid())
+  tenderId          String
+  requirement       String
+  clauseReference   String?
+  documentReference String?
+  pageReference     Int?
+  complianceStatus  ComplianceStatus @default(NEEDS_VERIFICATION)
+  evidence          String?
+  companyDocumentId String?
+  notes             String?
+  confirmedById     String?
+  sortOrder         Int              @default(0)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  tender            Tender           @relation(fields: [tenderId], references: [id], onDelete: Cascade)
+  companyDocument   CompanyDocument? @relation(fields: [companyDocumentId], references: [id], onDelete: SetNull)
+
+  @@unique([tenderId, requirement])
+}
+
+model CompanyProfile {
+  id                   String              @id @default("company")
+  legalName            String?
+  displayName          String?
+  website              String?
+  yearsInBusiness      Int?
+  employeeCount        Int?
+  turnover             String?
+  locations            String?
+  industries           String?
+  certifications       String?
+  msmeStatus           String?
+  startupStatus        String?
+  governmentExperience String?
+  experience           String?
+  team                 String?
+  notes                String?
+  updatedAt            DateTime            @updatedAt
+  capabilities         CompanyCapability[]
+  documents            CompanyDocument[]
+}
+
+model CompanyCapability {
+  id               String         @id @default(cuid())
+  companyProfileId String         @default("company")
+  category         String
+  name             String
+  description      String?
+  proficiency      String?
+  keywords         String[]
+  active           Boolean        @default(true)
+  company          CompanyProfile @relation(fields: [companyProfileId], references: [id], onDelete: Cascade)
+}
+
+model CompanyDocument {
+  id               String                 @id @default(cuid())
+  companyProfileId String                 @default("company")
+  documentType     String
+  name             String
+  issuer           String?
+  issueDate        DateTime?
+  expiryDate       DateTime?
+  storageKey       String?
+  mimeType         String?
+  size             Int?
+  sha256           String?
+  status           String                 @default("NEEDS_VERIFICATION")
+  notes            String?
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  company          CompanyProfile         @relation(fields: [companyProfileId], references: [id], onDelete: Cascade)
+  compliance       TenderComplianceItem[]
+
+  @@index([expiryDate, status])
+}
+
+model BidWorkspace {
+  id                       String               @id @default(cuid())
+  tenderId                 String               @unique
+  status                   BidStatus            @default(IN_PREPARATION)
+  technicalApprovalStatus  ApprovalStatus       @default(PENDING)
+  documentApprovalStatus   ApprovalStatus       @default(PENDING)
+  commercialApprovalStatus ApprovalStatus       @default(PENDING)
+  createdById              String
+  updatedById              String
+  submittedAt              DateTime?
+  submittedById            String?
+  portalReference          String?
+  submissionNotes          String?
+  createdAt                DateTime             @default(now())
+  updatedAt                DateTime             @updatedAt
+  tender                   Tender               @relation(fields: [tenderId], references: [id], onDelete: Cascade)
+  sections                 BidSection[]
+  commercial               CommercialWorksheet?
+
+  @@index([status])
+}
+
+model BidSection {
+  id               String       @id @default(cuid())
+  bidWorkspaceId   String
+  sectionType      String
+  generatedContent String
+  editedContent    String?
+  status           String       @default("DRAFT")
+  version          Int          @default(1)
+  updatedAt        DateTime     @updatedAt
+  workspace        BidWorkspace @relation(fields: [bidWorkspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([bidWorkspaceId, sectionType])
+}
+
+model CommercialWorksheet {
+  id                       String       @id @default(cuid())
+  bidWorkspaceId           String       @unique
+  effortEstimate           String?
+  developmentCost          Decimal?     @db.Decimal(18, 2)
+  implementationCost       Decimal?     @db.Decimal(18, 2)
+  cloudCost                Decimal?     @db.Decimal(18, 2)
+  travelCost               Decimal?     @db.Decimal(18, 2)
+  supportCost              Decimal?     @db.Decimal(18, 2)
+  amcCost                  Decimal?     @db.Decimal(18, 2)
+  taxAssumptions           String?
+  internalMargin           Decimal?     @db.Decimal(5, 2)
+  recommendedInternalRange String?
+  approvedQuote            Decimal?     @db.Decimal(18, 2)
+  notes                    String?
+  updatedAt                DateTime     @updatedAt
+  workspace                BidWorkspace @relation(fields: [bidWorkspaceId], references: [id], onDelete: Cascade)
+}
+
+model GovernmentActivity {
+  id          String   @id @default(cuid())
+  tenderId    String?
+  actorUserId String
+  action      String
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  tender      Tender?  @relation(fields: [tenderId], references: [id], onDelete: Cascade)
+
+  @@index([tenderId, createdAt])
+}
+
+model GovernmentNotification {
+  id        String    @id @default(cuid())
+  tenderId  String?
+  key       String    @unique
+  message   String
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+  tender    Tender?   @relation(fields: [tenderId], references: [id], onDelete: Cascade)
+
+  @@index([readAt, createdAt])
+}

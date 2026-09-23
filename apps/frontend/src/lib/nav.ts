@@ -27,7 +27,7 @@ export interface NavSection {
 
 export const navSections: NavSection[] = [
   {
-    title: 'Workspace',
+    title: 'Private Opportunities',
     items: [
       { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
       { label: 'Leads', href: '/leads', icon: Target },
@@ -36,12 +36,26 @@ export const navSections: NavSection[] = [
     ],
   },
   {
-    title: 'Engagement',
+    title: 'Private Engagement',
     items: [
       { label: 'Conversations', href: '/conversations', icon: MessagesSquare },
       { label: 'Follow-ups', href: '/followups', icon: BellRing },
       { label: 'Quotations', href: '/quotations', icon: Receipt },
       { label: 'Invoices', href: '/invoices', icon: ReceiptText },
+    ],
+  },
+  {
+    title: 'Government Procurement',
+    items: [
+      { label: 'Overview', href: '/government', icon: LayoutDashboard },
+      { label: 'Tender Sources', href: '/government/sources', icon: Rss },
+      {
+        label: 'Government Tenders',
+        href: '/government/tenders',
+        icon: Target,
+      },
+      { label: 'Bid Workspaces', href: '/government/bids', icon: FileText },
+      { label: 'Company & Documents', href: '/company', icon: Briefcase },
     ],
   },
   {
