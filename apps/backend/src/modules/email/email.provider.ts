@@ -6,7 +6,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 
 export interface SendEmailInput {
-  to: string;
+  to: string | string[];
   subject: string;
   text: string;
 }
@@ -41,6 +41,14 @@ export class EmailProvider {
       );
     }
 
+    const personalizations = (Array.isArray(input.to) ? input.to : [input.to])
+      .map((email) => email.trim())
+      .filter(Boolean)
+      .map((email) => ({ to: [{ email }] }));
+    if (!personalizations.length) {
+      throw new BadRequestException('Email recipient is required');
+    }
+
     const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
       method: 'POST',
       headers: {
@@ -48,7 +56,7 @@ export class EmailProvider {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        personalizations: [{ to: [{ email: input.to }] }],
+        personalizations,
         from: { email: fromEmail },
         subject: input.subject,
         content: [{ type: 'text/plain', value: input.text }],

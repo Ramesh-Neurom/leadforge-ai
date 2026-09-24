@@ -41,6 +41,10 @@ The seed adds configurable GeM and manual source records and an empty company pr
 
 Copy the source configuration in `docs/government-source-config.json` when creating or revising discovery rules.
 
+## Weekly digest email
+
+When `GOVT_DIGEST_ENABLED=true` and `GOVT_DIGEST_TO` has at least one address, the backend sends one plain-text email after Monday 08:00 IST with newly matched (`RELEVANT`) tenders from the last 7 days. The mail includes bid number, title, buyer, last date, match reason, and official page URL. Existing tender, document, analysis, and bid flows are unchanged. Set `GOVT_TENDER_SYNC_ENABLED=true` and `GEM_SYNC_ENABLED=true` if the digest should refresh GeM first. Admins can send immediately with `POST /api/government/digest/run?force=true`.
+
 ## Environment variables
 
 - `DATABASE_URL`
@@ -48,6 +52,8 @@ Copy the source configuration in `docs/government-source-config.json` when creat
 - `GEMINI_MODEL`
 - `GOVT_TENDER_SYNC_ENABLED`
 - `GEM_SYNC_ENABLED`
+- `GOVT_DIGEST_ENABLED`
+- `GOVT_DIGEST_TO`
 - `TENDER_DOC_MAX_BYTES`
 - `TENDER_DOC_ALLOWED_HOSTS`
 - `TENDER_STORAGE_DIR`
@@ -72,6 +78,7 @@ Backend route groups:
 - `/api/company-capabilities`
 - `/api/company-documents`
 - `/api/government/dashboard`
+- `/api/government/digest/run`
 
 ## Verification
 

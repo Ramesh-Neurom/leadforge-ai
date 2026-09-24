@@ -27,6 +27,7 @@ import {
 } from './tender-document.service';
 import { TenderAnalysisService } from './tender-analysis.service';
 import { BidWorkspaceService } from './bid-workspace.service';
+import { GovernmentWeeklyDigestService } from './government-weekly-digest.service';
 import { parse } from './government.schemas';
 import { GovernmentErrorFilter } from './government-error.filter';
 
@@ -44,6 +45,7 @@ export class GovernmentController {
     private documents: TenderDocumentService,
     private analysis: TenderAnalysisService,
     private bids: BidWorkspaceService,
+    private digest: GovernmentWeeklyDigestService,
   ) {}
   @Get('government/dashboard') dashboard() {
     return this.government.dashboard();
@@ -74,6 +76,11 @@ export class GovernmentController {
   @Roles('ADMIN', 'MANAGER', 'BD_EXECUTIVE')
   sync(@Param('id') id: string) {
     return this.government.syncSource(id);
+  }
+  @Post('government/digest/run')
+  @Roles('ADMIN', 'MANAGER')
+  runDigest(@Query('force') force?: string) {
+    return this.digest.run(force === 'true');
   }
   @Get('tenders') list(@Query() q: Record<string, string>) {
     return this.government.list(q);

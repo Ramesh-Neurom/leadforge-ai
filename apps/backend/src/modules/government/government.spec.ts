@@ -15,6 +15,12 @@ import {
   downloadPublic,
 } from './tender-document.service';
 import { assertReady } from './bid-workspace.service';
+import {
+  digestWindowOpen,
+  formatDigestText,
+  parseRecipients,
+  weekMondayKey,
+} from './government-weekly-digest.service';
 
 async function main() {
   const source = JSON.parse(
@@ -130,6 +136,36 @@ async function main() {
   assert.equal(
     (await new GemTenderSourceAdapter().test(config)).automaticDiscovery,
     false,
+  );
+  assert.equal(
+    weekMondayKey(new Date('2026-09-24T04:00:00.000Z')),
+    '2026-09-21',
+  );
+  assert.equal(digestWindowOpen(new Date('2026-09-21T02:00:00.000Z')), false);
+  assert.equal(digestWindowOpen(new Date('2026-09-21T03:00:00.000Z')), true);
+  assert.deepEqual(parseRecipients('a@x.com, b@x.com'), [
+    'a@x.com',
+    'b@x.com',
+  ]);
+  assert.match(
+    formatDigestText(
+      '2026-09-21',
+      [
+        {
+          id: '1',
+          bidNumber: 'GEM/2026/B/1',
+          title: 'Web application',
+          buyerName: 'NIC',
+          department: null,
+          ministry: null,
+          closesAt: new Date('2026-09-30T00:00:00.000Z'),
+          relevanceReason: 'Matched configured services: web application',
+          sourceUrl: 'https://bidplus.gem.gov.in/bid/1',
+        },
+      ],
+      [],
+    ),
+    /GEM\/2026\/B\/1/,
   );
   console.log(
     'PASS government validation, normalization rules, relevance, capability rules, SSRF boundaries, file validation, AI schema and approval gate tests',
